@@ -10,7 +10,7 @@ A powerful and easy-to-use Python package for performing Optical Character Recog
 - 🖼️ **Multi-format support**: Process images (PNG, JPG, JPEG, GIF, BMP, TIFF, WebP), PDF files, and PPTX presentations
 - ⚡ **Parallel processing**: Concurrent processing of multiple pages/slides for improved performance
 - 🌐 **Cross-platform**: Works on Windows, macOS, and Linux
-- 📄 **Smart content extraction**: Extracts both text and images from PPTX files
+- 📄 **Visual OCR for PPTX**: Converts PowerPoint slides to images for accurate visual content extraction
 - 🔄 **Async support**: Built with asyncio for efficient processing
 - 📝 **Markdown output**: Converts documents to clean, structured markdown format
 
@@ -32,6 +32,21 @@ sudo apt-get install poppler-utils
 
 **Windows:**
 Download and install from [Poppler for Windows](http://blog.alivate.com.au/poppler-windows/)
+
+For PowerPoint (.pptx) processing, you'll need to install LibreOffice:
+
+**macOS:**
+```bash
+brew install --cask libreoffice
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get install libreoffice
+```
+
+**Windows:**
+Download and install from [LibreOffice official website](https://www.libreoffice.org/download/download/)
 
 ### Install MiniOCR
 

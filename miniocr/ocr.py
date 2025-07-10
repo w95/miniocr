@@ -1,11 +1,12 @@
 import asyncio
 import base64
 import os
+import subprocess
 from typing import List, Optional
 from openai import AsyncOpenAI
 import aiofiles
 import aiohttp
-from pdf2image import convert_from_path
+from pdf2image import convert_from_path, convert_from_bytes
 import tempfile
 from pptx import Presentation
 from PIL import Image
@@ -72,38 +73,74 @@ RULES:
         
         return image_paths
 
-    async def pptx_to_images(self, pptx_path: str, temp_dir: str) -> List[str]:
-        """Convert PowerPoint presentation to images."""
-        # This is a simplified version - in production you might want to use more sophisticated conversion
-        # For now, we'll extract text and images from slides and create simple images
+    async def pptx_to_images(self, pptx_path: str, temp_dir: str, dpi: int = 200) -> List[str]:
+        """Convert PowerPoint presentation to images via PDF conversion."""
+        try:
+            # Get the base filename without extension
+            filename_base = os.path.basename(pptx_path)
+            filename_bare = os.path.splitext(filename_base)[0]
+            
+            # Convert PPTX to PDF using LibreOffice
+            pdf_path = os.path.join(temp_dir, f"{filename_bare}.pdf")
+            
+            # Use soffice to convert PPTX to PDF
+            command_list = [
+                "soffice", 
+                "--headless", 
+                "--convert-to", "pdf", 
+                "--outdir", temp_dir,
+                pptx_path
+            ]
+            
+            result = subprocess.run(command_list, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                # Fallback to text extraction if soffice fails
+                print(f"Warning: LibreOffice conversion failed: {result.stderr}")
+                return await self.pptx_to_images_fallback(pptx_path, temp_dir)
+            
+            # Check if PDF was created
+            if not os.path.exists(pdf_path):
+                print("Warning: PDF file was not created, falling back to text extraction")
+                return await self.pptx_to_images_fallback(pptx_path, temp_dir)
+            
+            # Convert PDF to images
+            with open(pdf_path, "rb") as f:
+                pdf_bytes = f.read()
+            
+            images = convert_from_bytes(pdf_bytes, dpi=dpi)
+            image_paths = []
+            
+            for i, img in enumerate(images):
+                image_path = os.path.join(temp_dir, f"slide_{i+1}.png")
+                img.save(image_path, 'PNG')
+                image_paths.append(image_path)
+            
+            return image_paths
+            
+        except Exception as e:
+            print(f"Error in PPTX to images conversion: {e}")
+            # Fallback to text extraction
+            return await self.pptx_to_images_fallback(pptx_path, temp_dir)
+    
+    async def pptx_to_images_fallback(self, pptx_path: str, temp_dir: str) -> List[str]:
+        """Fallback method: Extract text and create simple images."""
         presentation = Presentation(pptx_path)
         image_paths = []
         
         for i, slide in enumerate(presentation.slides):
-            # Create a simple image with slide text for OCR processing
-            # This is a basic implementation - you might want to use a more sophisticated approach
             slide_text = []
             
             # Extract text from slide
             for shape in slide.shapes:
-                if hasattr(shape, "text"):
+                if hasattr(shape, "text") and shape.text.strip():
                     slide_text.append(shape.text)
             
-            # For now, we'll create a simple text image
-            # In a real implementation, you'd want to render the slide properly
             if slide_text:
-                # Create a simple image with the text
+                # Create a simple white image with text content
                 img = Image.new('RGB', (800, 600), color='white')
-                # Save as image for processing
                 image_path = os.path.join(temp_dir, f"slide_{i+1}.png")
                 img.save(image_path, 'PNG')
-                
-                # For now, we'll save the text directly and process it
-                # This is a simplified approach
-                text_path = os.path.join(temp_dir, f"slide_{i+1}.txt")
-                with open(text_path, 'w', encoding='utf-8') as f:
-                    f.write('\n'.join(slide_text))
-                
                 image_paths.append(image_path)
         
         return image_paths
@@ -182,9 +219,20 @@ RULES:
             
             # Determine file type and process accordingly
             if self.is_pptx_file(local_path):
-                # For PPTX, we'll process text directly for now
-                markdown_content = await self.process_pptx_text(local_path)
-                pages_count = len(Presentation(local_path).slides)
+                # Convert PPTX to images and process with Vision API
+                image_paths = await self.pptx_to_images(local_path, temp_dir)
+                # Process images concurrently
+                semaphore = asyncio.Semaphore(concurrency)
+                
+                async def process_with_semaphore(image_path):
+                    async with semaphore:
+                        return await self.process_image(image_path, model)
+                
+                tasks = [process_with_semaphore(img_path) for img_path in image_paths]
+                results = await asyncio.gather(*tasks)
+                
+                markdown_content = "\n\n".join(results) if len(results) > 1 else results[0]
+                pages_count = len(results)
             elif self.is_image_file(local_path):
                 image_paths = [local_path]
                 # Process images concurrently
