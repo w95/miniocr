@@ -16,9 +16,27 @@ A powerful and easy-to-use Python package for performing Optical Character Recog
 
 ## Installation
 
-### Prerequisites
+### System Requirements
 
-For PDF processing, you'll need to install Poppler:
+- **Python**: 3.8 or higher
+- **Operating System**: Windows, macOS, or Linux
+
+### Dependencies
+
+#### Python Dependencies (Auto-installed)
+
+MiniOCR automatically installs these Python packages:
+
+- **openai** - OpenAI API client for Vision processing
+- **aiohttp** - Async HTTP client for file downloads
+- **aiofiles** - Async file operations
+- **pdf2image** - PDF to image conversion
+- **python-pptx** - PowerPoint file parsing
+- **Pillow** - Image processing and manipulation
+
+#### System Dependencies (Manual Installation Required)
+
+##### For PDF Processing - Poppler
 
 **macOS:**
 ```bash
@@ -33,7 +51,7 @@ sudo apt-get install poppler-utils
 **Windows:**
 Download and install from [Poppler for Windows](http://blog.alivate.com.au/poppler-windows/)
 
-For PowerPoint (.pptx) processing, you'll need to install LibreOffice:
+##### For PPTX Visual Processing - LibreOffice
 
 **macOS:**
 ```bash
@@ -48,18 +66,29 @@ sudo apt-get install libreoffice
 **Windows:**
 Download and install from [LibreOffice official website](https://www.libreoffice.org/download/download/)
 
+> **Note**: LibreOffice is required for high-quality PPTX processing with visual content extraction. Without it, MiniOCR will fall back to text-only extraction.
+
 ### Install MiniOCR
+
+#### From PyPI (Recommended)
 
 ```bash
 pip install miniocr
 ```
 
-Or install from source:
+#### From Source
 
 ```bash
 git clone https://github.com/w95/miniocr.git
 cd miniocr
 pip install -e .
+```
+
+### Verify Installation
+
+```python
+from miniocr import MiniOCR, __version__
+print(f"MiniOCR v{__version__} installed successfully!")
 ```
 
 ## Quick Start
@@ -177,9 +206,34 @@ Process a file and extract text using OCR.
 
 ## Configuration
 
-### Environment Variables
+### Required Configuration
 
-- `OPENAI_API_KEY`: Your OpenAI API key (required)
+#### OpenAI API Key
+
+You **must** provide an OpenAI API key to use MiniOCR. You can set it in two ways:
+
+**Option 1: Environment Variable (Recommended)**
+```bash
+export OPENAI_API_KEY="your-api-key-here"
+```
+
+**Option 2: Pass directly to class**
+```python
+from miniocr import MiniOCR
+ocr = MiniOCR(api_key="your-api-key-here")
+```
+
+### Optional Dependencies Behavior
+
+#### Without Poppler (PDF Processing)
+- **Effect**: PDF processing will fail
+- **Error**: `pdf2image` will raise an exception
+- **Solution**: Install Poppler following the instructions above
+
+#### Without LibreOffice (PPTX Processing)
+- **Effect**: Falls back to text-only extraction from PPTX files
+- **Warning**: Visual content (charts, images, formatting) will be lost
+- **Solution**: Install LibreOffice for full visual processing capabilities
 
 ### Model Options
 
@@ -216,6 +270,80 @@ async def handle_errors():
 asyncio.run(handle_errors())
 ```
 
+## Troubleshooting
+
+### Common Issues
+
+#### "No module named 'pdf2image'" or PDF processing fails
+**Solution**: Install Poppler system dependency
+```bash
+# macOS
+brew install poppler
+
+# Ubuntu/Debian  
+sudo apt-get install poppler-utils
+```
+
+#### "LibreOffice conversion failed" for PPTX files
+**Solution**: Install LibreOffice
+```bash
+# macOS
+brew install --cask libreoffice
+
+# Ubuntu/Debian
+sudo apt-get install libreoffice
+```
+
+#### "Invalid API key" or OpenAI authentication errors
+**Solution**: Verify your OpenAI API key
+```bash
+# Check if environment variable is set
+echo $OPENAI_API_KEY
+
+# Or test with a simple script
+python -c "from openai import OpenAI; client = OpenAI(); print('API key is valid')"
+```
+
+#### PPTX files show only text content, missing charts/images
+**Cause**: LibreOffice not installed, falling back to text-only extraction  
+**Solution**: Install LibreOffice for full visual processing capabilities
+
+#### "soffice command not found" errors
+**Cause**: LibreOffice not in system PATH  
+**Solutions**:
+- **macOS**: Ensure LibreOffice is installed via Homebrew: `brew install --cask libreoffice`
+- **Linux**: Install via package manager: `sudo apt-get install libreoffice`
+- **Windows**: Add LibreOffice to PATH or reinstall
+
+#### Rate limiting or quota exceeded errors
+**Cause**: Too many requests to OpenAI API  
+**Solutions**:
+- Reduce `concurrency` parameter (try 1-3 for free tier)
+- Add delays between processing batches
+- Upgrade your OpenAI plan for higher rate limits
+
+### Dependencies Verification
+
+#### Check Python Dependencies
+```python
+# Verify MiniOCR installation
+from miniocr import MiniOCR, __version__
+print(f"MiniOCR v{__version__} installed")
+
+# Check key dependencies
+import openai, aiohttp, pdf2image, pptx
+print("All Python dependencies available")
+```
+
+#### Check System Dependencies
+```bash
+# Test Poppler installation
+pdftoppm -h
+
+# Test LibreOffice installation  
+soffice --version
+```
+
 ## Performance Tips
 
 1. **Adjust concurrency**: Increase `concurrency` parameter for faster processing of multi-page documents
@@ -247,11 +375,24 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Changelog
 
+### v0.0.3
+- **Enhanced PPTX Processing**: Now uses LibreOffice for PDF conversion and OpenAI Vision API
+- **Visual Content Extraction**: Captures charts, images, and formatting from PowerPoint slides
+- **Improved Accuracy**: Better OCR results for complex PPTX layouts
+- **Fallback Support**: Graceful degradation to text extraction if LibreOffice unavailable
+- **Updated Documentation**: Comprehensive dependency and troubleshooting information
+
+### v0.0.2
+- **PyPI Publication**: Package published to Python Package Index
+- **Improved Package Structure**: Better organization and imports
+- **Enhanced README**: Complete documentation with examples
+- **Testing Infrastructure**: Comprehensive test suite
+
 ### v0.0.1
-- Initial release
-- Support for images, PDF, and PPTX files
-- Async processing with concurrency control
-- Cross-platform compatibility
+- **Initial Release**: Basic OCR functionality
+- **Multi-format Support**: Images, PDF, and PPTX files
+- **Async Processing**: Concurrent processing with configurable limits
+- **Cross-platform Compatibility**: Windows, macOS, and Linux support
 
 ## Support
 
