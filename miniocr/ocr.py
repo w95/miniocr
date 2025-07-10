@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import os
+import platform
 import subprocess
 from typing import List, Optional
 from openai import AsyncOpenAI
@@ -47,6 +48,49 @@ RULES:
     def is_pptx_file(self, file_path: str) -> bool:
         """Check if file is a PowerPoint presentation."""
         return file_path.lower().endswith('.pptx')
+    
+    def find_libreoffice_executable(self) -> Optional[str]:
+        """Find LibreOffice executable path based on the operating system."""
+        system = platform.system().lower()
+        
+        # Common executable names to try
+        if system == "windows":
+            executable_names = ["soffice.exe", "soffice"]
+            # Common Windows installation paths
+            common_paths = [
+                r"C:\Program Files\LibreOffice\program\soffice.exe",
+                r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+                r"C:\LibreOffice\program\soffice.exe",
+            ]
+        else:
+            executable_names = ["soffice", "libreoffice"]
+            # Common Unix/Linux/macOS paths
+            common_paths = [
+                "/usr/bin/soffice",
+                "/usr/local/bin/soffice",
+                "/opt/libreoffice/program/soffice",
+                "/Applications/LibreOffice.app/Contents/MacOS/soffice",
+            ]
+        
+        # First, try to find in PATH
+        for exec_name in executable_names:
+            try:
+                result = subprocess.run(
+                    ["which", exec_name] if system != "windows" else ["where", exec_name],
+                    capture_output=True, text=True, timeout=5
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    return exec_name  # Found in PATH
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                continue
+        
+        # If not in PATH, try common installation paths
+        for path in common_paths:
+            if os.path.isfile(path) and os.access(path, os.X_OK):
+                return path
+        
+        # Last resort: try just the executable name and hope it works
+        return executable_names[0]
 
     async def download_file(self, url: str, temp_dir: str) -> str:
         """Download file from URL if needed."""
@@ -83,20 +127,31 @@ RULES:
             # Convert PPTX to PDF using LibreOffice
             pdf_path = os.path.join(temp_dir, f"{filename_bare}.pdf")
             
+            # Find LibreOffice executable
+            soffice_executable = self.find_libreoffice_executable()
+            if not soffice_executable:
+                print("Warning: LibreOffice executable not found, falling back to text extraction")
+                return await self.pptx_to_images_fallback(pptx_path, temp_dir)
+            
             # Use soffice to convert PPTX to PDF
             command_list = [
-                "soffice", 
+                soffice_executable, 
                 "--headless", 
                 "--convert-to", "pdf", 
                 "--outdir", temp_dir,
                 pptx_path
             ]
             
-            result = subprocess.run(command_list, capture_output=True, text=True)
+            # Set timeout for the conversion process
+            try:
+                result = subprocess.run(command_list, capture_output=True, text=True, timeout=60)
+            except subprocess.TimeoutExpired:
+                print("Warning: LibreOffice conversion timed out, falling back to text extraction")
+                return await self.pptx_to_images_fallback(pptx_path, temp_dir)
             
             if result.returncode != 0:
                 # Fallback to text extraction if soffice fails
-                print(f"Warning: LibreOffice conversion failed: {result.stderr}")
+                print(f"Warning: LibreOffice conversion failed (exit code {result.returncode}): {result.stderr}")
                 return await self.pptx_to_images_fallback(pptx_path, temp_dir)
             
             # Check if PDF was created

@@ -66,7 +66,7 @@ sudo apt-get install libreoffice
 **Windows:**
 Download and install from [LibreOffice official website](https://www.libreoffice.org/download/download/)
 
-> **Note**: LibreOffice is required for high-quality PPTX processing with visual content extraction. Without it, MiniOCR will fall back to text-only extraction.
+> **Note**: LibreOffice is required for high-quality PPTX processing with visual content extraction. Without it, MiniOCR will fall back to text-only extraction. On Windows, MiniOCR automatically detects LibreOffice in common installation paths.
 
 ### Install MiniOCR
 
@@ -374,6 +374,12 @@ pytest tests/
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Changelog
+
+### v0.0.4
+- **Enhanced Windows Support**: Improved LibreOffice detection on Windows systems
+- **Cross-platform Compatibility**: Automatically finds LibreOffice in common installation paths
+- **Robust Error Handling**: Better timeout and fallback mechanisms for PPTX processing
+- **Improved Reliability**: More resilient LibreOffice executable detection across platforms
 
 ### v0.0.3
 - **Enhanced PPTX Processing**: Now uses LibreOffice for PDF conversion and OpenAI Vision API

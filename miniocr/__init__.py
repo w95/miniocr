@@ -7,7 +7,7 @@ PDF documents, and PowerPoint presentations using OpenAI's Vision API.
 
 from .ocr import MiniOCR
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 __author__ = "Enrike Nur"
 __email__ = "enrike.nur@gmail.com"
 
