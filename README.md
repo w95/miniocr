@@ -2,6 +2,7 @@
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PyPI Downloads](https://static.pepy.tech/badge/miniocr)](https://pepy.tech/projects/miniocr)
 
 A powerful and easy-to-use Python package for performing Optical Character Recognition (OCR) on images, PDF documents, and PowerPoint presentations using OpenAI's Vision API.
 
